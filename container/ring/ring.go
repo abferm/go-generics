@@ -1,5 +1,9 @@
 // Package ring implements operations on circular lists.
 // Modified from the original Go implementation to leaverage generics
+
+// Copyright 2009 The Go Authors. All rights reserved.
+// Use of this source code is governed by a BSD-style
+// license that can be found in the LICENSE file.
 package ring
 
 // A Ring is an element of a circular list, or ring.
