@@ -16,7 +16,7 @@ type SignedNumber interface {
 	Float | Int
 }
 
-type Number interface {
+type Numeric interface {
 	Float | Uint | Int
 }
 
