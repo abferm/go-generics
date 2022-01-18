@@ -5,7 +5,64 @@ import (
 	"sync"
 )
 
-// DynamicFanOut distributes items pushed to the InChan across multiple out channels
+// StaticFanOut distributes items pushed to the in channel across the out channels
+// This component requires a separate goroutine to call Run, which will process
+// the input channel until either the input channel is closed or the context is
+// canceled.
+type StaticFanOut[T any] struct {
+	in   <-chan T
+	outs []chan<- T
+}
+
+// NewStaticFanOut produces a StaticFanOut for the provided input channel
+// Close the input channel to signal the end of input
+func NewStaticFanOut[T any](in <-chan T, outs ...chan<- T) *StaticFanOut[T] {
+	return &StaticFanOut[T]{
+		in:   in,
+		outs: outs,
+	}
+}
+
+// Run processes data from the input channel until it is closed, or the provided context is canceled.
+// If the input channel is closed the return value will be nil, otherwise it will be ctx.Err().
+// All outputs will be closed and removed on completion.
+func (f *StaticFanOut[T]) Run(ctx context.Context) error {
+	defer f.closeAll()
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		case value, ok := <-f.in:
+			if !ok {
+				// input has closed, we are done
+				return nil
+			}
+			err := f.fan(ctx, value)
+			if err != nil {
+				return err
+			}
+		}
+	}
+}
+
+func (f *StaticFanOut[T]) fan(ctx context.Context, value T) error {
+	for _, out := range f.outs {
+		select {
+		case out <- value:
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+	return nil
+}
+
+func (f *StaticFanOut[T]) closeAll() {
+	for _, v := range f.outs {
+		close(v)
+	}
+}
+
+// DynamicFanOut distributes items pushed to the in channel across multiple out channels
 // This component requires a separate goroutine to call Run, which will process
 // the input channel until either the input channel is closed or the context is
 // canceled.

@@ -99,3 +99,77 @@ func TestDynamicFanOut(t *testing.T) {
 	assert.Equal(t, []int{0, 1, 2, 3, 4}, out3Contents, "Expected out3 to be closed with entire input as contents")
 
 }
+
+func TestStaticFanOut(t *testing.T) {
+	in := make(chan int, 5)
+	for i := 0; i < 5; i++ {
+		in <- i
+	}
+
+	fan := chantools.NewStaticFanOut(in)
+
+	canceled, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	err := fan.Run(canceled)
+	assert.ErrorIs(t, err, context.Canceled, "Context error should have been returned")
+
+	close(in)
+	fan = chantools.NewStaticFanOut(in)
+	err = fan.Run(context.Background())
+	assert.NoError(t, err, "Completion should not be an error")
+
+	in = make(chan int, 5)
+	for i := 0; i < 5; i++ {
+		in <- i
+	}
+
+	fan = chantools.NewStaticFanOut(in, make(chan<- int))
+	runCTX, cancel := context.WithTimeout(context.Background(), time.Second)
+
+	close(in)
+
+	err = fan.Run(runCTX)
+	assert.ErrorIs(t, err, context.DeadlineExceeded, "expected timeout with unserviced output")
+	cancel()
+
+	in = make(chan int, 5)
+	for i := 0; i < 5; i++ {
+		in <- i
+	}
+
+	in = make(chan int, 5)
+	for i := 0; i < 5; i++ {
+		in <- i
+	}
+
+	out1 := make(chan int, len(in))
+	out2 := make(chan int, len(in))
+
+	fan = chantools.NewStaticFanOut(in, out1, out2)
+	runCTX, cancel = context.WithTimeout(context.Background(), time.Second)
+
+	wg := new(sync.WaitGroup)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		err := fan.Run(runCTX)
+		assert.NoError(t, err, "finished input shouldn't error")
+	}()
+	for i := 0; i < 5; i++ {
+		assert.Equal(t, i, <-out1)
+	}
+
+	assert.Equal(t, cap(out2), len(out2), "out2 should be full")
+	close(in)
+	wg.Wait()
+	cancel()
+
+	out2Contents := make([]int, len(out2))
+	for i := range out2 {
+		out2Contents[i] = i
+	}
+
+	assert.Equal(t, []int{0, 1, 2, 3, 4}, out2Contents, "Expected out2 to be closed with entire input as contents")
+
+}
