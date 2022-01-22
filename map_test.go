@@ -2,8 +2,10 @@ package generics_test
 
 import (
 	"fmt"
+	"testing"
 
 	"github.com/abferm/go-generics"
+	"github.com/stretchr/testify/assert"
 )
 
 func ExampleMap() {
@@ -25,4 +27,30 @@ func ExampleMap() {
 	// world
 	//
 	// 1
+}
+
+func TestMap(t *testing.T) {
+	type predator string
+	type prey string
+
+	m := generics.NewMap[predator, prey](5)
+
+	assert.Equal(t, 0, m.Len())
+	assert.False(t, m.Has("fox"))
+
+	m.Add("fox", "rabbit")
+
+	assert.Equal(t, 1, m.Len())
+	assert.True(t, m.Has("fox"))
+
+	m.Add("whale", "krill")
+	m.Add("shark", "fish")
+
+	assert.Equal(t, 3, m.Len())
+	assert.ElementsMatch(t, []predator{"fox", "whale", "shark"}, m.Keys())
+	assert.ElementsMatch(t, []prey{"krill", "fish", "rabbit"}, m.Values())
+	assert.ElementsMatch(t, []struct {
+		Key   predator
+		Value prey
+	}{{"whale", "krill"}, {"shark", "fish"}, {"fox", "rabbit"}}, m.Entries())
 }

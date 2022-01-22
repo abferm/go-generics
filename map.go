@@ -26,3 +26,36 @@ func (m Map[KEY, VALUE]) Has(key KEY) bool {
 	_, ok := m[key]
 	return ok
 }
+
+func (m Map[KEY, VALUE]) Keys() []KEY {
+	keys := make([]KEY, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
+func (m Map[KEY, VALUE]) Values() []VALUE {
+	values := make([]VALUE, 0, len(m))
+	for _, v := range m {
+		values = append(values, v)
+	}
+	return values
+}
+
+func (m Map[KEY, VALUE]) Entries() []struct {
+	Key   KEY
+	Value VALUE
+} {
+	entries := make([]struct {
+		Key   KEY
+		Value VALUE
+	}, 0, len(m))
+	for k, v := range m {
+		entries = append(entries, struct {
+			Key   KEY
+			Value VALUE
+		}{k, v})
+	}
+	return entries
+}
